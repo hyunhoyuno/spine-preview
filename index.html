@@ -154,6 +154,7 @@ button,input,select{font-family:inherit; font-size:inherit; color:inherit}
       <option value="#B8362A">빨강</option>
       <option value="#26568F">파랑</option>
     </select>
+    <label class="tgl" title="대수가 어긋나 물리는 실제 제본 오차"><input type="checkbox" id="tJit" checked> 제본 오차</label>
     <label class="tgl"><input type="checkbox" id="tSpin"> 자동 회전</label>
     <label class="tgl">크기 <input type="range" class="range" id="zoom" min="45" max="420" value="104"></label>
     <label class="tgl"><input type="checkbox" id="tFlat"> 책등 전개</label>
@@ -258,7 +259,9 @@ var pdfDoc=null, pdfInfo=null, cfg=null, spine=null;
 var spineTex=null, spineUrl=null, coverUrl=null, backUrl=null, edgeUrl=null, edgeUrl2=null;
 var spineFlat=null;   // 전개도용(음영 없는 원본)
 var facets=[], lit=[], token=0;
-var rotY=46, rotX=-9, panX=0, panY=0, scale=1, spinning=false, raf=0;
+var rotY=46, rotX=-9, panX=0, panY=0, spinning=false, raf=0;
+var BASE=1;                       // 조립은 항상 이 배율로 한 번만
+var zoom=1, zoomTarget=1, zoomRaf=0;
 var dragging=false, panning=false, lastX=0, lastY=0;
 var TEX_H=4096;                    // 세로가 병목이다. 가로는 이미 과표본.
 var COVER_H=3000;                  // 표지 렌더 높이(px)
@@ -437,6 +440,18 @@ function buildSpineTexture(sp,onP){
 /* 3D용 텍스처 = 지면 텍스처 + 접지 굴곡 음영 + 실.
    접지 굴곡은 실제로 0.6mm 남짓이라 기하로는 안 보인다.
    면마다 밝기를 다르게 주면 세로 밴딩만 생기므로, 음영을 픽셀에 구워 넣는다. */
+/* 제본 오차 — 같은 책이면 늘 같은 오차가 나오도록 씨앗을 고정한다.
+   매번 달라지면 실 색만 바꿔도 책이 다르게 보인다. */
+function mulberry32(a){
+  return function(){
+    a|=0; a=a+0x6D2B79F5|0;
+    var t=Math.imul(a^a>>>15,1|a);
+    t=t+Math.imul(t^t>>>7,61|t)^t;
+    return ((t^t>>>14)>>>0)/4294967296;
+  };
+}
+function seedOf(sp){ return (sp.totalPages*7919 + sp.rows.length*104729 + Math.round(sp.total*1000)) >>> 0; }
+
 /* 종이 결 — 은은하게. 과하면 그래픽처럼 보인다. */
 function makeGrain(){
   var n=180, c=document.createElement("canvas"); c.width=c.height=n;
@@ -483,28 +498,41 @@ function spineDataUrl(c){
   return c.toDataURL("image/jpeg",0.97);
 }
 
-function bakeSpine3D(sp, base, threadOn, threadCol){
+function bakeSpine3D(sp, base, threadOn, threadCol, jitterOn){
   var W=base.width, H=base.height;
   var c=document.createElement("canvas"); c.width=W; c.height=H;
   var ctx=c.getContext("2d",{alpha:false});
+  var rnd=mulberry32(seedOf(sp));
+  var J=jitterOn?1:0;
+  var pxY=H/sp.pageH;                       // 세로 1mm 당 픽셀
+
+  /* 대수마다 조금씩 어긋나게 물린다. 실제로 완벽히 맞는 책은 없다. */
   ctx.drawImage(base,0,0);
+  var jit=[];
+  sp.rows.forEach(function(r){
+    var a=(r.x0/sp.total)*W, b=(r.x1/sp.total)*W, w=b-a;
+    var dy=(rnd()*2-1)*0.42*pxY*J;          // 위아래 ±0.42mm
+    var apex=0.36+(rnd()*2-1)*0.07*J;       // 접지 마루가 정중앙은 아니다
+    var dark=1+(rnd()*2-1)*0.13*J;          // 골 깊이 편차
+    var tone=1+(rnd()*2-1)*0.035*J;         // 종이 색 편차
+    jit.push({a:a,b:b,w:w,dy:dy,apex:apex,dark:dark,tone:tone});
+    if(dy) ctx.drawImage(base, a,0,w,H, a,dy,w,H);
+  });
 
   /* 대수별 원통 음영 — 광원은 앞쪽 왼편 */
   ctx.globalCompositeOperation="multiply";
-  sp.rows.forEach(function(r){
-    var a=(r.x0/sp.total)*W, b=(r.x1/sp.total)*W, w=b-a;
-    if(w<=0) return;
-    var g=ctx.createLinearGradient(a,0,b,0);
-    g.addColorStop(0.00,"#5a6064");
-    g.addColorStop(0.03,"#7d8285");
-    g.addColorStop(0.10,"#b4b8ba");
-    g.addColorStop(0.22,"#e2e4e5");
-    g.addColorStop(0.36,"#ffffff");
-    g.addColorStop(0.58,"#eaecec");
-    g.addColorStop(0.78,"#bcc0c2");
-    g.addColorStop(0.93,"#8b9093");
-    g.addColorStop(1.00,"#5a6064");
-    ctx.fillStyle=g; ctx.fillRect(a,0,w,H);
+  jit.forEach(function(j){
+    if(j.w<=0) return;
+    var g=ctx.createLinearGradient(j.a,0,j.b,0);
+    function st(p,v){
+      v=Math.round(clamp(255-(255-v)*j.dark,0,255)*j.tone);
+      v=clamp(Math.round(v),0,255);
+      g.addColorStop(clamp(p,0,1), "rgb("+v+","+v+","+v+")");
+    }
+    st(0.00,0x5a); st(0.03,0x7d); st(0.10,0xb4);
+    st(j.apex-0.14,0xe2); st(j.apex,0xff); st(j.apex+0.22,0xea);
+    st(0.78,0xbc); st(0.93,0x8b); st(1.00,0x5a);
+    ctx.fillStyle=g; ctx.fillRect(j.a,0,j.w,H);
   });
   /* 위아래 감쇠 */
   var v=ctx.createLinearGradient(0,0,0,H);
@@ -514,46 +542,48 @@ function bakeSpine3D(sp, base, threadOn, threadCol){
 
   /* 접지 마루의 반사 */
   ctx.globalCompositeOperation="screen";
-  sp.rows.forEach(function(r){
-    var a=(r.x0/sp.total)*W, b=(r.x1/sp.total)*W, w=b-a;
-    var g=ctx.createLinearGradient(a,0,b,0);
+  jit.forEach(function(j){
+    var g=ctx.createLinearGradient(j.a,0,j.b,0);
     g.addColorStop(0,"rgba(255,255,255,0)");
-    g.addColorStop(.26,"rgba(255,255,255,0)");
-    g.addColorStop(.36,"rgba(255,255,255,.16)");
-    g.addColorStop(.46,"rgba(255,255,255,0)");
+    g.addColorStop(clamp(j.apex-0.10,0,1),"rgba(255,255,255,0)");
+    g.addColorStop(clamp(j.apex,0,1),"rgba(255,255,255,.16)");
+    g.addColorStop(clamp(j.apex+0.10,0,1),"rgba(255,255,255,0)");
     g.addColorStop(1,"rgba(255,255,255,0)");
-    ctx.fillStyle=g; ctx.fillRect(a,0,w,H);
+    ctx.fillStyle=g; ctx.fillRect(j.a,0,j.w,H);
   });
   ctx.globalCompositeOperation="source-over";
 
-  /* 실 — 세로 축은 판형 기준이라 두께를 그쪽 배율로 잡는다 */
+  /* 실 — 스테이션마다 조금씩 어긋나고, 대수 사이에서 살짝 처진다 */
   if(threadOn){
-    var pxPerMmY=H/sp.pageH;
-    var th=Math.max(2.2, 0.5*pxPerMmY);
-    [0.115,0.375,0.625,0.885].forEach(function(sy){
-      var y=sy*H;
+    var base0=[0.115,0.375,0.625,0.885];
+    for(var q=0;q<base0.length;q++){
+      var y0=(base0[q]+(rnd()*2-1)*0.012*J)*H;
+      var th=Math.max(2.4,(0.5+(rnd()*2-1)*0.06*J)*pxY);
       ctx.save();
-      ctx.beginPath(); ctx.roundRect? ctx.roundRect(0,y-th/2,W,th,th/2) : ctx.rect(0,y-th/2,W,th);
-      ctx.fillStyle="rgba(0,0,0,.34)";
-      ctx.filter="blur(1.6px)";
-      ctx.fill();
-      ctx.filter="none";
       ctx.beginPath();
-      if(ctx.roundRect) ctx.roundRect(0,y-th/2,W,th,th/2); else ctx.rect(0,y-th/2,W,th);
-      ctx.fillStyle=threadCol; ctx.fill();
-      var tg=ctx.createLinearGradient(0,y-th/2,0,y+th/2);
-      tg.addColorStop(0,"rgba(255,255,255,.50)");
-      tg.addColorStop(.42,"rgba(255,255,255,.06)");
-      tg.addColorStop(1,"rgba(0,0,0,.34)");
-      ctx.fillStyle=tg; ctx.fill();
+      ctx.moveTo(0,y0);
+      for(var i=0;i<jit.length;i++){
+        var j=jit[i];
+        var sag=(rnd()*2-1)*0.10*pxY*J + j.dy*0.5;
+        ctx.lineTo(j.a, y0+sag*0.4);
+        ctx.lineTo((j.a+j.b)/2, y0+sag);
+        ctx.lineTo(j.b, y0+sag*0.4);
+      }
+      ctx.lineTo(W,y0);
+      ctx.lineJoin="round"; ctx.lineCap="round";
+      ctx.strokeStyle="rgba(0,0,0,.36)"; ctx.lineWidth=th*1.5;
+      ctx.filter="blur(1.8px)"; ctx.stroke(); ctx.filter="none";
+      ctx.strokeStyle=threadCol; ctx.lineWidth=th; ctx.stroke();
+      ctx.strokeStyle="rgba(255,255,255,.42)"; ctx.lineWidth=th*0.34;
+      ctx.translate(0,-th*0.26); ctx.stroke();
       ctx.restore();
-    });
+    }
   }
-  applyGrain(c, 0.18, c.width/520, c.height/1150);
   return c;
 }
 
-function buildEdge(sp){
+function buildEdge(sp,jitterOn){
+  var rnd=mulberry32(seedOf(sp)^0x9E37), J=jitterOn?1:0;
   var leaves=Math.max(8,Math.round(sp.totalPages/2));
   var c=document.createElement("canvas");
   c.width=clamp(leaves*3,96,2048); c.height=48;
@@ -564,9 +594,16 @@ function buildEdge(sp){
   ctx.fillStyle=g; ctx.fillRect(0,0,c.width,c.height);
   ctx.fillStyle="#8d857a";
   for(var i=0;i<leaves;i++){
-    var x=(i+.5)/leaves*c.width;
-    ctx.globalAlpha=.06+.06*(((i*2654435761)>>>0)%97)/97;
-    ctx.fillRect(x,0,Math.max(.6,c.width/leaves*.4),c.height);
+    var x=(i+.5)/leaves*c.width + (rnd()*2-1)*(c.width/leaves)*0.30*J;
+    ctx.globalAlpha=.05+.09*rnd();
+    ctx.fillRect(x,0,Math.max(.6,c.width/leaves*(.34+rnd()*.22)),c.height);
+  }
+  /* 대수 단위로 살짝 도드라지는 자리 */
+  ctx.globalAlpha=.10;
+  for(var g2=0;g2<sp.rows.length;g2++){
+    var gx=(sp.rows[g2].mid/sp.total)*c.width;
+    ctx.fillStyle= rnd()>.5 ? "#6f675d" : "#ffffff";
+    ctx.fillRect(gx-(c.width/sp.rows.length)*0.10,0,(c.width/sp.rows.length)*0.20,c.height);
   }
   ctx.globalAlpha=1;
   applyGrain(c, 0.10, 1, 1);
@@ -585,7 +622,7 @@ function rotate90(src){
 /* ══ 3D 조립 ═══════════════════════════════ */
 function buildBook(sp){
   var book=$("book"); book.innerHTML=""; facets=[]; lit=[];
-  var k=430/sp.pageH*scale;
+  var k=430/sp.pageH*BASE;
   var pw=sp.pageW*k, ph=sp.pageH*k, S=Math.max(1.2,sp.total*k);
   book.style.width=pw+"px"; book.style.height=ph+"px";
   book.style.marginLeft=(-pw/2)+"px"; book.style.marginTop=(-ph/2)+"px";
@@ -666,15 +703,32 @@ function shade(){
 }
 
 function applyView(){
-  $("book").style.transform="translate3d("+panX+"px,"+panY+"px,0) rotateX("+rotX+"deg) rotateY("+rotY+"deg)";
+  /* 확대는 CSS 3D 스케일로만. 휠마다 다시 조립하면
+     1MB 짜리 텍스처를 매번 다시 파싱해 뻑뻑해진다. */
+  $("book").style.transform=
+    "translate3d("+panX+"px,"+panY+"px,0) scale3d("+zoom+","+zoom+","+zoom+") "+
+    "rotateX("+rotX+"deg) rotateY("+rotY+"deg)";
   if(spine){
-    var k=430/spine.pageH*scale, fl=$("floor");
+    var k=430/spine.pageH*BASE*zoom, fl=$("floor");
     fl.style.width=(spine.pageW*k*1.75)+"px";
     fl.style.height=(spine.pageH*k*0.5)+"px";
     fl.style.marginTop=(spine.pageH*k*0.46+panY)+"px";
     fl.style.marginLeft=panX+"px";
+    fl.style.opacity=clamp(1.15-zoom*0.16,0,1);
   }
   shade();
+}
+
+function setZoomTarget(v){
+  zoomTarget=clamp(v,0.42,4.6);
+  $("zoom").value=Math.round(zoomTarget*104);
+  if(!zoomRaf) zoomRaf=requestAnimationFrame(stepZoom);
+}
+function stepZoom(){
+  var d=zoomTarget-zoom;
+  if(Math.abs(d)<0.0015){ zoom=zoomTarget; applyView(); zoomRaf=0; return; }
+  zoom+=d*0.26; applyView();
+  zoomRaf=requestAnimationFrame(stepZoom);
 }
 
 /* ══ 전개도 ════════════════════════════════ */
@@ -749,7 +803,7 @@ function rebuild(){
   buildSpineTexture(sp,function(f){ setLoad(f*0.82); }).then(function(tex){
     if(my!==token) return null;
     spineFlat=tex; spineTex=tex;
-    spineUrl=spineDataUrl(bakeSpine3D(sp,tex,$("tThread").checked,$("threadColor").value));
+    spineUrl=spineDataUrl(bakeSpine3D(sp,tex,$("tThread").checked,$("threadColor").value,$("tJit").checked));
     setLoad(0.86);
     // 가짜(메인 스레드) 워커에서는 page.render 를 동시에 돌리면 멈춘다. 반드시 순차로.
     var res=[];
@@ -761,7 +815,7 @@ function rebuild(){
     if(my!==token||!res) return;
     coverUrl=res[0]? finishCover(res[0],true ).toDataURL("image/jpeg",0.96):null;
     backUrl =res[1]? finishCover(res[1],false).toDataURL("image/jpeg",0.96):null;
-    var eg=buildEdge(sp);
+    var eg=buildEdge(sp,$("tJit").checked);
     edgeUrl =eg.toDataURL("image/jpeg",0.94);
     edgeUrl2=rotate90(eg).toDataURL("image/jpeg",0.94);
     setLoad(1);
@@ -794,13 +848,12 @@ window.addEventListener("pointerup",function(){ dragging=false; studio.classList
 window.addEventListener("blur",function(){ dragging=false; });
 studio.addEventListener("wheel",function(e){
   e.preventDefault();
-  $("zoom").value=clamp(Math.round(+$("zoom").value*(e.deltaY<0?1.08:0.93)),45,420);
-  onZoom();
+  var d=e.deltaY;
+  if(e.deltaMode===1) d*=16; else if(e.deltaMode===2) d*=100;   // 줄/페이지 단위 휠
+  setZoomTarget(zoomTarget*Math.exp(-clamp(d,-240,240)*0.0022));
 },{passive:false});
-
-function onZoom(){ scale=+$("zoom").value/104; if(spine){ buildBook(spine); applyView(); } }
-$("zoom").addEventListener("input",onZoom);
-$("reset").addEventListener("click",function(){ rotY=46; rotX=-9; panX=0; panY=0; applyView(); });
+$("zoom").addEventListener("input",function(){ setZoomTarget(+this.value/104); });
+$("reset").addEventListener("click",function(){ rotY=46; rotX=-9; panX=0; panY=0; setZoomTarget(1); });
 $("tSpin").addEventListener("change",function(){
   spinning=this.checked;
   if(spinning) tick(); else cancelAnimationFrame(raf);
@@ -812,10 +865,11 @@ function tick(){
 }
 function rebakeSpine(){
   if(!spine||!spineFlat) return;
-  spineUrl=spineDataUrl(bakeSpine3D(spine,spineFlat,$("tThread").checked,$("threadColor").value));
+  spineUrl=spineDataUrl(bakeSpine3D(spine,spineFlat,$("tThread").checked,$("threadColor").value,$("tJit").checked));
   buildBook(spine); applyView();
 }
 $("tThread").addEventListener("change",rebakeSpine);
+$("tJit").addEventListener("change",function(){ if(spine){ edgeUrl=null; rebuild(); } });
 $("threadColor").addEventListener("change",rebakeSpine);
 $("tFlat").addEventListener("change",function(){ $("flat").hidden=!this.checked; drawFlat(); });
 $("tGuides").addEventListener("change",drawFlat);
@@ -844,7 +898,7 @@ window.__spine={
   loadPdfFile:loadPdf,
   loadCfgText:function(t){ cfg=parseConfig(t); $("chipCfg").classList.add("on");
     $("cfgSz").textContent=cfg.rows.length+"대 · "+fx(cfg.total,2)+"mm"; rebuild(); },
-  setView:function(y,x){ rotY=y; rotX=x; applyView(); },
+  setView:function(y,x,z){ rotY=y; rotX=x; if(z){ zoom=zoomTarget=z; $("zoom").value=Math.round(z*104); } applyView(); },
   state:function(){ return {pdf:!!pdfDoc,info:pdfInfo,spine:spine,facets:facets.length,
     est:spine&&!!spine.estimated}; }
 };
