@@ -1,0 +1,31 @@
+{
+  "unit": "mm",
+  "paper": "미색모조",
+  "gsm": "100",
+  "caliper": 0.1300,
+  "pageWidth": 148.00,
+  "pageHeight": 210.00,
+  "totalPages": 208,
+  "threadPerSignature": 0.250,
+  "signatureGap": 0.000,
+  "curvature": 1.57,
+  "bleed": 3.00,
+  "artworkIncludesBleed": true,
+  "spineWidth": 16.770,
+  "bands": 13,
+  "signatures": [
+    { "no": 1, "pages": 16, "firstPage": 1, "lastPage": 16, "thickness": 1.2900, "spineStart": 0.0000, "spineMid": 0.6450, "spineEnd": 1.2900, "wrapWidth": 1.0127, "slices": [ { "page": 1, "side": "recto", "gutter": "left", "from": 0.0000, "to": 0.6450, "mirrored": true }, { "page": 16, "side": "verso", "gutter": "right", "from": 0.6450, "to": 1.2900, "mirrored": true } ] },
+    { "no": 2, "pages": 16, "firstPage": 17, "lastPage": 32, "thickness": 1.2900, "spineStart": 1.2900, "spineMid": 1.9350, "spineEnd": 2.5800, "wrapWidth": 1.0127, "slices": [ { "page": 17, "side": "recto", "gutter": "left", "from": 1.2900, "to": 1.9350, "mirrored": true }, { "page": 32, "side": "verso", "gutter": "right", "from": 1.9350, "to": 2.5800, "mirrored": true } ] },
+    { "no": 3, "pages": 16, "firstPage": 33, "lastPage": 48, "thickness": 1.2900, "spineStart": 2.5800, "spineMid": 3.2250, "spineEnd": 3.8700, "wrapWidth": 1.0127, "slices": [ { "page": 33, "side": "recto", "gutter": "left", "from": 2.5800, "to": 3.2250, "mirrored": true }, { "page": 48, "side": "verso", "gutter": "right", "from": 3.2250, "to": 3.8700, "mirrored": true } ] },
+    { "no": 4, "pages": 16, "firstPage": 49, "lastPage": 64, "thickness": 1.2900, "spineStart": 3.8700, "spineMid": 4.5150, "spineEnd": 5.1600, "wrapWidth": 1.0127, "slices": [ { "page": 49, "side": "recto", "gutter": "left", "from": 3.8700, "to": 4.5150, "mirrored": true }, { "page": 64, "side": "verso", "gutter": "right", "from": 4.5150, "to": 5.1600, "mirrored": true } ] },
+    { "no": 5, "pages": 16, "firstPage": 65, "lastPage": 80, "thickness": 1.2900, "spineStart": 5.1600, "spineMid": 5.8050, "spineEnd": 6.4500, "wrapWidth": 1.0127, "slices": [ { "page": 65, "side": "recto", "gutter": "left", "from": 5.1600, "to": 5.8050, "mirrored": true }, { "page": 80, "side": "verso", "gutter": "right", "from": 5.8050, "to": 6.4500, "mirrored": true } ] },
+    { "no": 6, "pages": 16, "firstPage": 81, "lastPage": 96, "thickness": 1.2900, "spineStart": 6.4500, "spineMid": 7.0950, "spineEnd": 7.7400, "wrapWidth": 1.0127, "slices": [ { "page": 81, "side": "recto", "gutter": "left", "from": 6.4500, "to": 7.0950, "mirrored": true }, { "page": 96, "side": "verso", "gutter": "right", "from": 7.0950, "to": 7.7400, "mirrored": true } ] },
+    { "no": 7, "pages": 16, "firstPage": 97, "lastPage": 112, "thickness": 1.2900, "spineStart": 7.7400, "spineMid": 8.3850, "spineEnd": 9.0300, "wrapWidth": 1.0127, "slices": [ { "page": 97, "side": "recto", "gutter": "left", "from": 7.7400, "to": 8.3850, "mirrored": true }, { "page": 112, "side": "verso", "gutter": "right", "from": 8.3850, "to": 9.0300, "mirrored": true } ] },
+    { "no": 8, "pages": 16, "firstPage": 113, "lastPage": 128, "thickness": 1.2900, "spineStart": 9.0300, "spineMid": 9.6750, "spineEnd": 10.3200, "wrapWidth": 1.0127, "slices": [ { "page": 113, "side": "recto", "gutter": "left", "from": 9.0300, "to": 9.6750, "mirrored": true }, { "page": 128, "side": "verso", "gutter": "right", "from": 9.6750, "to": 10.3200, "mirrored": true } ] },
+    { "no": 9, "pages": 16, "firstPage": 129, "lastPage": 144, "thickness": 1.2900, "spineStart": 10.3200, "spineMid": 10.9650, "spineEnd": 11.6100, "wrapWidth": 1.0127, "slices": [ { "page": 129, "side": "recto", "gutter": "left", "from": 10.3200, "to": 10.9650, "mirrored": true }, { "page": 144, "side": "verso", "gutter": "right", "from": 10.9650, "to": 11.6100, "mirrored": true } ] },
+    { "no": 10, "pages": 16, "firstPage": 145, "lastPage": 160, "thickness": 1.2900, "spineStart": 11.6100, "spineMid": 12.2550, "spineEnd": 12.9000, "wrapWidth": 1.0127, "slices": [ { "page": 145, "side": "recto", "gutter": "left", "from": 11.6100, "to": 12.2550, "mirrored": true }, { "page": 160, "side": "verso", "gutter": "right", "from": 12.2550, "to": 12.9000, "mirrored": true } ] },
+    { "no": 11, "pages": 16, "firstPage": 161, "lastPage": 176, "thickness": 1.2900, "spineStart": 12.9000, "spineMid": 13.5450, "spineEnd": 14.1900, "wrapWidth": 1.0127, "slices": [ { "page": 161, "side": "recto", "gutter": "left", "from": 12.9000, "to": 13.5450, "mirrored": true }, { "page": 176, "side": "verso", "gutter": "right", "from": 13.5450, "to": 14.1900, "mirrored": true } ] },
+    { "no": 12, "pages": 16, "firstPage": 177, "lastPage": 192, "thickness": 1.2900, "spineStart": 14.1900, "spineMid": 14.8350, "spineEnd": 15.4800, "wrapWidth": 1.0127, "slices": [ { "page": 177, "side": "recto", "gutter": "left", "from": 14.1900, "to": 14.8350, "mirrored": true }, { "page": 192, "side": "verso", "gutter": "right", "from": 14.8350, "to": 15.4800, "mirrored": true } ] },
+    { "no": 13, "pages": 16, "firstPage": 193, "lastPage": 208, "thickness": 1.2900, "spineStart": 15.4800, "spineMid": 16.1250, "spineEnd": 16.7700, "wrapWidth": 1.0127, "slices": [ { "page": 193, "side": "recto", "gutter": "left", "from": 15.4800, "to": 16.1250, "mirrored": true }, { "page": 208, "side": "verso", "gutter": "right", "from": 16.1250, "to": 16.7700, "mirrored": true } ] }
+  ]
+}

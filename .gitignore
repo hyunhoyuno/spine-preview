@@ -1,0 +1,7 @@
+# 실제 작업 파일은 올리지 않는다
+*.pdf
+*.indd
+*.idml
+local.html
+serve.mjs
+.DS_Store

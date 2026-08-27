@@ -1,0 +1,738 @@
+<title>노출사철 책 미리보기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans+KR:wght@300;400;500;600&display=swap">
+
+<style>
+:root{
+  --chrome:#111619; --chrome-2:#171E22; --line:#263136;
+  --ink:#E9EFF1; --ink-2:#B4C3C9; --muted:#7E9199;
+  --cyan:#41B7E4; --magenta:#F45BA6; --warn:#E5A64A;
+  --studio-1:#2C3439; --studio-2:#12171A; --studio-3:#07090B;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --cond:"IBM Plex Sans Condensed","IBM Plex Sans KR",system-ui,sans-serif;
+  --body:"IBM Plex Sans KR",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+body{
+  margin:0; background:var(--chrome); color:var(--ink);
+  font-family:var(--body); font-size:13px; line-height:1.5;
+  -webkit-font-smoothing:antialiased; overflow:hidden;
+}
+h1{font-family:var(--cond); font-weight:600; font-size:15px; letter-spacing:.01em; margin:0; white-space:nowrap}
+button,input,select{font-family:inherit; font-size:inherit; color:inherit}
+:focus-visible{outline:2px solid var(--cyan); outline-offset:2px}
+
+.app{display:flex; flex-direction:column; height:100vh; height:100dvh}
+
+/* ── 상단 바 ─────────────────────────────── */
+.bar{
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:9px 16px; background:var(--chrome-2);
+  border-bottom:1px solid var(--line); z-index:5;
+}
+.bar .grow{flex:1 1 auto}
+.chip{
+  display:inline-flex; align-items:center; gap:8px;
+  background:var(--chrome); border:1px solid var(--line); border-radius:4px;
+  padding:6px 11px; cursor:pointer; font-size:12px; color:var(--ink-2);
+  transition:border-color .14s,color .14s,background .14s; white-space:nowrap;
+}
+.chip:hover{border-color:var(--cyan); color:var(--ink)}
+.chip.on{border-color:var(--cyan); color:var(--ink); background:rgba(65,183,228,.09)}
+.chip .dot{width:6px; height:6px; border-radius:50%; background:var(--muted); flex:none}
+.chip.on .dot{background:var(--cyan); box-shadow:0 0 0 3px rgba(65,183,228,.18)}
+.chip b{font-weight:500; color:var(--ink)}
+.chip .sz{font-family:var(--mono); font-size:10.5px; color:var(--muted)}
+.tgl{display:inline-flex; align-items:center; gap:7px; font-size:12px; color:var(--ink-2); cursor:pointer; user-select:none; white-space:nowrap}
+.tgl input{accent-color:var(--cyan); width:13px; height:13px}
+.sel{background:var(--chrome); border:1px solid var(--line); border-radius:4px; padding:5px 8px; font-size:12px}
+.range{width:96px; accent-color:var(--cyan)}
+.mini{font-family:var(--mono); font-size:10.5px; color:var(--muted); white-space:nowrap}
+
+/* ── 스튜디오 ────────────────────────────── */
+.studio{
+  position:relative; flex:1 1 auto; min-height:0; overflow:hidden;
+  background:radial-gradient(125% 88% at 50% 10%, var(--studio-1) 0%, var(--studio-2) 48%, var(--studio-3) 100%);
+  perspective:2200px; perspective-origin:50% 45%;
+  cursor:grab; touch-action:none;
+}
+.studio.grabbing{cursor:grabbing}
+.floor{
+  position:absolute; left:50%; top:50%; pointer-events:none; z-index:1;
+  transform:translate(-50%,-50%);
+  background:radial-gradient(ellipse at center, rgba(0,0,0,.66) 0%, rgba(0,0,0,.30) 45%, transparent 72%);
+  filter:blur(10px);
+}
+.book{position:absolute; left:50%; top:50%; transform-style:preserve-3d; will-change:transform; z-index:2}
+.f{position:absolute; top:0; left:0; background-repeat:no-repeat; background-color:#e9e6df; backface-visibility:hidden}
+.f.edge{background-color:#dbd6cc}
+.vig{position:absolute; inset:0; pointer-events:none; z-index:3;
+  background:radial-gradient(118% 82% at 50% 40%, transparent 50%, rgba(0,0,0,.46) 100%)}
+
+/* ── 좌측 하단 사양 ──────────────────────── */
+.spec{
+  position:absolute; left:16px; bottom:16px; z-index:4;
+  background:rgba(14,19,21,.84); -webkit-backdrop-filter:blur(9px); backdrop-filter:blur(9px);
+  border:1px solid var(--line); border-radius:5px;
+  padding:10px 12px; max-width:272px;
+  font-family:var(--mono); font-size:10.5px; line-height:1.7; color:var(--muted);
+}
+.spec .hd{
+  font-family:var(--cond); font-size:9.5px; letter-spacing:.15em; text-transform:uppercase;
+  color:var(--muted); padding-bottom:6px; margin-bottom:6px; border-bottom:1px solid var(--line);
+  display:flex; justify-content:space-between; gap:12px;
+}
+.spec .hd em{font-style:normal; color:var(--cyan)}
+.spec dl{display:grid; grid-template-columns:auto 1fr; gap:0 14px; margin:0}
+.spec dt{color:var(--muted)}
+.spec dd{margin:0; color:var(--ink-2); text-align:right; font-variant-numeric:tabular-nums}
+.spec .est{color:var(--warn); margin-top:7px; font-size:10px; line-height:1.55; font-family:var(--body)}
+
+.hint{position:absolute; right:16px; bottom:16px; z-index:4;
+  font-family:var(--mono); font-size:10.5px; color:var(--muted); text-align:right; line-height:1.7}
+
+.load{
+  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:6;
+  background:rgba(14,19,21,.92); border:1px solid var(--line); border-radius:6px;
+  padding:15px 20px; text-align:center; min-width:236px;
+}
+.load .t{font-family:var(--cond); font-size:12.5px; margin-bottom:9px}
+.load .bar2{height:3px; background:var(--line); border-radius:2px; overflow:hidden}
+.load .bar2 i{display:block; height:100%; width:0%; background:var(--cyan); transition:width .12s}
+
+.empty{
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  flex-direction:column; gap:11px; text-align:center; padding:28px; z-index:3;
+  transition:opacity .35s;
+}
+.empty .big{font-family:var(--cond); font-size:23px; font-weight:600; color:var(--ink)}
+.empty p{max-width:48ch; color:var(--muted); font-size:12.5px; margin:0; line-height:1.75}
+.empty p b{color:var(--ink-2); font-weight:500}
+.empty .cta{display:flex; gap:9px; flex-wrap:wrap; justify-content:center; margin-top:4px}
+.empty.gone{opacity:0; pointer-events:none}
+
+/* ── 전개도 ──────────────────────────────── */
+.flat{border-top:1px solid var(--line); background:var(--chrome-2); padding:9px 16px 12px; flex:0 0 auto}
+.flat header{display:flex; align-items:center; gap:12px; margin-bottom:8px; flex-wrap:wrap}
+.flat header h2{font-family:var(--cond); font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); margin:0}
+.flat .wrapx{overflow-x:auto}
+.flat .inner{width:max-content; margin:0 auto}
+#flatCanvas{display:block; box-shadow:0 3px 16px -6px #000}
+#flatLabels{display:block}
+
+.drophint{position:absolute; inset:0; z-index:9; display:none; align-items:center; justify-content:center;
+  background:rgba(65,183,228,.10); border:2px dashed var(--cyan)}
+.drophint.show{display:flex}
+.drophint span{font-family:var(--cond); font-size:17px; color:var(--ink)}
+
+@media (prefers-reduced-motion:reduce){ *{transition:none !important} }
+@media (max-width:820px){ .hint{display:none} .spec{max-width:calc(100vw - 32px)} }
+</style>
+
+<div class="app">
+
+  <div class="bar">
+    <h1>노출사철 책 미리보기</h1>
+    <div class="chip" id="chipPdf" tabindex="0" role="button"><span class="dot"></span><b>내지 PDF</b><span class="sz" id="pdfSz">없음</span></div>
+    <div class="chip" id="chipCfg" tabindex="0" role="button"><span class="dot"></span><b>세팅</b><span class="sz" id="cfgSz">없음</span></div>
+    <span class="grow"></span>
+    <label class="tgl"><input type="checkbox" id="tThread" checked> 실</label>
+    <select class="sel" id="threadColor" aria-label="실 색">
+      <option value="#EFE7D6">생사</option>
+      <option value="#17181A">검정</option>
+      <option value="#B8362A">빨강</option>
+      <option value="#26568F">파랑</option>
+    </select>
+    <label class="tgl"><input type="checkbox" id="tSpin"> 자동 회전</label>
+    <label class="tgl">크기 <input type="range" class="range" id="zoom" min="45" max="180" value="104"></label>
+    <label class="tgl"><input type="checkbox" id="tFlat"> 책등 전개</label>
+    <button class="chip" id="reset">정면으로</button>
+  </div>
+
+  <div class="studio" id="studio">
+    <div class="floor" id="floor"></div>
+    <div class="book" id="book"></div>
+    <div class="vig"></div>
+
+    <div class="empty" id="empty">
+      <div class="big">내지 PDF를 놓아 주세요</div>
+      <p>InDesign에서 <b>페이지 단위</b>로 내보낸 내지 PDF와, SpineCalc의 <b>⑤ 좌표 JSON</b>을 함께 끌어다 놓으면 제본된 책을 세워 보여 드립니다. 세팅 없이 PDF만 놓아도 추정값으로 보여 줍니다.</p>
+      <div class="cta">
+        <span class="chip" id="pickPdf">PDF 선택</span>
+        <span class="chip" id="pickCfg">세팅 파일 선택</span>
+      </div>
+    </div>
+
+    <div class="load" id="load" hidden>
+      <div class="t" id="loadT">읽는 중</div>
+      <div class="bar2"><i id="loadBar"></i></div>
+    </div>
+
+    <div class="spec" id="spec" hidden></div>
+    <div class="hint">드래그 — 회전<br>휠 — 확대 · Shift+드래그 — 이동</div>
+    <div class="drophint" id="drophint"><span>여기에 놓기</span></div>
+  </div>
+
+  <div class="flat" id="flat" hidden>
+    <header>
+      <h2>책등 전개</h2>
+      <span class="mini" id="flatNote"></span>
+      <span class="grow"></span>
+      <label class="tgl"><input type="checkbox" id="tGuides"> 대수 가이드</label>
+      <label class="tgl">확대 <input type="range" class="range" id="flatZoom" min="2" max="40" value="16"></label>
+    </header>
+    <div class="wrapx"><div class="inner">
+      <canvas id="flatCanvas"></canvas>
+      <canvas id="flatLabels"></canvas>
+    </div></div>
+  </div>
+</div>
+
+<input type="file" id="filePdf" accept="application/pdf,.pdf" hidden>
+<input type="file" id="fileCfg" accept=".json,.txt,.ini,application/json,text/plain" hidden>
+
+<script>/*__PDFJS_LIB__*/</script>
+<script>/*__PDFJS_WORKER__*/</script>
+<script>
+(function(){
+"use strict";
+var MM2PT=72/25.4;
+function $(id){ return document.getElementById(id); }
+function fx(n,d){ if(d===undefined)d=2; return (isFinite(n)?n:0).toFixed(d); }
+function clamp(v,a,b){ return v<a?a:v>b?b:v; }
+
+var pdfDoc=null, pdfInfo=null, cfg=null, spine=null;
+var spineTex=null, spineUrl=null, coverUrl=null, backUrl=null, edgeUrl=null;
+var spineFlat=null;   // 전개도용(음영 없는 원본)
+var facets=[], token=0;
+var rotY=46, rotX=-9, panX=0, panY=0, scale=1, spinning=false, raf=0;
+var dragging=false, panning=false, lastX=0, lastY=0;
+var FACETS=9, TEX_H=1500;
+
+function showLoad(on,t){ $("load").hidden=!on; if(t)$("loadT").textContent=t; if(!on)$("loadBar").style.width="0%"; }
+function setLoad(f){ $("loadBar").style.width=Math.round(f*100)+"%"; }
+
+/* ══ 세팅 ══════════════════════════════════ */
+function fromParams(p){
+  var sigs=[];
+  if(p.signatures && p.signatures.length) sigs=p.signatures.slice();
+  else{
+    var remain=p.totalPages, size=p.sigSize||16;
+    while(remain>=size){ sigs.push(size); remain-=size; }
+    while(remain>=8){ sigs.push(8); remain-=8; }
+    if(remain>0) sigs.push(remain);
+  }
+  var rows=[], x=0, pg=1;
+  for(var i=0;i<sigs.length;i++){
+    var t=(sigs[i]/2)*p.caliper+(p.thread||0);
+    rows.push({no:i+1,pages:sigs[i],first:pg,last:pg+sigs[i]-1,
+               thick:t,x0:x,mid:x+t/2,x1:x+t,wrapW:(t/2)*(p.curvature||1.57)});
+    x+=t+(p.gap||0); pg+=sigs[i];
+  }
+  return {rows:rows,total:sigs.length?x-(p.gap||0):0,pageW:p.pageW,pageH:p.pageH,
+          bleed:p.bleed||0,incBleed:!!p.incBleed,totalPages:p.totalPages,
+          paper:p.paper||"",gsm:p.gsm||"",caliper:p.caliper,thread:p.thread||0,
+          gap:p.gap||0,curv:p.curvature||1.57};
+}
+function rowsFrom(arr){
+  return arr.map(function(r){
+    return {no:r.no,pages:r.pages,first:r.firstPage,last:r.lastPage,thick:r.thickness,
+            x0:r.spineStart,mid:r.spineMid,x1:r.spineEnd,wrapW:r.wrapWidth};
+  });
+}
+function parseConfig(text){
+  var t=String(text).replace(/^﻿/,"").trim();
+  if(t.charAt(0)==="{"){
+    var j=JSON.parse(t);
+    var arr=j.signatureTable||j.signatures;
+    if(!arr||!arr.length||arr[0].spineStart===undefined) throw new Error("책등 좌표가 없는 JSON입니다");
+    return {rows:rowsFrom(arr),total:j.spineWidth,pageW:j.pageWidth,pageH:j.pageHeight,
+            bleed:j.bleed||0,incBleed:!!j.artworkIncludesBleed,totalPages:j.totalPages,
+            paper:j.paper||"",gsm:j.gsm||"",caliper:j.caliper,thread:j.threadPerSignature||0,
+            gap:j.signatureGap||0,curv:j.curvature||1.57};
+  }
+  var kv={}, lines=t.split(/\r\n|\r|\n/);
+  for(var i=0;i<lines.length;i++){
+    var L=lines[i]; if(!L||L.charAt(0)===";"||L.charAt(0)==="[") continue;
+    var eq=L.indexOf("="); if(eq<0) continue;
+    kv[L.substring(0,eq)]=L.substring(eq+1);
+  }
+  if(!kv.total) throw new Error("세팅 값을 찾지 못했습니다");
+  var size=parseInt(kv.sig,10), manual=null;
+  if(isNaN(size)&&kv.manualSig)
+    manual=kv.manualSig.split(/[,\s]+/).map(Number).filter(function(n){return n>0;});
+  return fromParams({totalPages:parseInt(kv.total,10),sigSize:isNaN(size)?16:size,signatures:manual,
+    caliper:parseFloat(kv.caliper),thread:parseFloat(kv.thread)||0,gap:parseFloat(kv.gap)||0,
+    curvature:parseFloat(kv.curv)||1.57,pageW:parseFloat(kv.pageW)||148,pageH:parseFloat(kv.pageH)||210,
+    bleed:parseFloat(kv.bleed)||0,incBleed:kv.incBleed==="1",paper:kv.paper||"",gsm:kv.gsm||""});
+}
+function estimate(){
+  var s=fromParams({totalPages:pdfInfo.pages-(pdfInfo.pages%4),sigSize:16,caliper:0.13,
+    thread:0.25,gap:0,curvature:1.57,pageW:pdfInfo.trimW,pageH:pdfInfo.trimH,
+    bleed:0,incBleed:false,paper:"미색모조",gsm:"100"});
+  s.estimated=true; return s;
+}
+
+/* ══ PDF ═══════════════════════════════════ */
+function loadPdf(file){
+  showLoad(true,"PDF 읽는 중");
+  var fr=new FileReader();
+  fr.onload=function(){
+    pdfjsLib.getDocument({data:new Uint8Array(fr.result)}).promise.then(function(doc){
+      pdfDoc=doc;
+      return doc.getPage(1).then(function(pg){
+        var vp=pg.getViewport({scale:1});
+        pdfInfo={name:file.name,pages:doc.numPages,trimW:vp.width/MM2PT,trimH:vp.height/MM2PT};
+        $("chipPdf").classList.add("on");
+        $("pdfSz").textContent=doc.numPages+"p · "+fx(pdfInfo.trimW,0)+"×"+fx(pdfInfo.trimH,0);
+        rebuild();
+      });
+    }).catch(function(e){ showLoad(false); alert("PDF를 읽지 못했습니다: "+(e&&e.message||e)); });
+  };
+  fr.readAsArrayBuffer(file);
+}
+function loadCfg(file){
+  var fr=new FileReader();
+  fr.onload=function(){
+    try{
+      cfg=parseConfig(fr.result);
+      $("chipCfg").classList.add("on");
+      $("cfgSz").textContent=cfg.rows.length+"대 · "+fx(cfg.total,2)+"mm";
+      rebuild();
+    }catch(e){ alert("세팅 파일을 읽지 못했습니다: "+(e&&e.message||e)); }
+  };
+  fr.readAsText(file,"utf-8");
+}
+
+/* 내지 PDF의 도련은 설정 판형과 실제 PDF 크기를 비교해 알아낸다.
+   (세팅의 artworkIncludesBleed 는 책등 아트워크용이라 여기 쓰면 안 된다.) */
+function trimOf(vp,sp){
+  var bx=sp.pdfBleedX||0, by=sp.pdfBleedY||0;
+  return {x0:bx*MM2PT, x1:vp.width-bx*MM2PT, y0:by*MM2PT,
+          w:vp.width-2*bx*MM2PT, h:vp.height-2*by*MM2PT};
+}
+function detectBleed(sp){
+  if(!pdfInfo){ sp.pdfBleedX=0; sp.pdfBleedY=0; return; }
+  var bx=(pdfInfo.trimW-sp.pageW)/2, by=(pdfInfo.trimH-sp.pageH)/2;
+  sp.pdfBleedX = bx>0.35? bx : 0;
+  sp.pdfBleedY = by>0.35? by : 0;
+  sp.sizeMismatch = (bx<-0.35 || by<-0.35);
+}
+function renderStrip(page,isRecto,wrapMM,pxW,sp){
+  if(!pdfDoc||page<1||page>pdfDoc.numPages) return Promise.resolve(null);
+  return pdfDoc.getPage(page).then(function(pg){
+    var vp=pg.getViewport({scale:1}), tr=trimOf(vp,sp);
+    var wPt=Math.min(wrapMM*MM2PT,tr.w);
+    if(wPt<=0) return null;
+    var sx=isRecto? tr.x0 : tr.x1-wPt;
+    var c=document.createElement("canvas"); c.width=pxW; c.height=TEX_H;
+    var ctx=c.getContext("2d",{alpha:false});
+    ctx.fillStyle="#fff"; ctx.fillRect(0,0,pxW,TEX_H);
+    return pg.render({canvasContext:ctx,viewport:vp,background:"#ffffff",
+      transform:[pxW/wPt,0,0,TEX_H/tr.h,-sx*(pxW/wPt),-tr.y0*(TEX_H/tr.h)]}).promise
+      .then(function(){ return c; });
+  }).catch(function(){ return null; });
+}
+function renderFull(page,targetH,sp){
+  if(!pdfDoc||page<1||page>pdfDoc.numPages) return Promise.resolve(null);
+  return pdfDoc.getPage(page).then(function(pg){
+    var vp=pg.getViewport({scale:1}), tr=trimOf(vp,sp), k=targetH/tr.h;
+    var c=document.createElement("canvas");
+    c.width=Math.max(1,Math.round(tr.w*k)); c.height=Math.round(tr.h*k);
+    var ctx=c.getContext("2d",{alpha:false});
+    ctx.fillStyle="#fff"; ctx.fillRect(0,0,c.width,c.height);
+    return pg.render({canvasContext:ctx,viewport:vp,background:"#ffffff",
+      transform:[k,0,0,k,-tr.x0*k,-tr.y0*k]}).promise.then(function(){ return c; });
+  }).catch(function(){ return null; });
+}
+
+/* ══ 책등 텍스처 (s 공간) ═══════════════════
+   접지를 돌아 나오므로 두 반쪽 모두 좌우 반전해 그린다. */
+function buildSpineTexture(sp,onP){
+  var perHalf=clamp(Math.round(3000/(sp.rows.length*2)),48,220);
+  var W=clamp(perHalf*sp.rows.length*2,640,3600);
+  var cv=document.createElement("canvas"); cv.width=W; cv.height=TEX_H;
+  var ctx=cv.getContext("2d",{alpha:false});
+  ctx.fillStyle="#15181a"; ctx.fillRect(0,0,W,TEX_H);
+  var jobs=[];
+  sp.rows.forEach(function(r){
+    jobs.push({r:r,page:r.first,recto:true, d0:r.x0, d1:r.mid});
+    jobs.push({r:r,page:r.last, recto:false,d0:r.mid,d1:r.x1});
+  });
+  var done=0, chain=Promise.resolve();
+  jobs.forEach(function(j){
+    chain=chain.then(function(){
+      return renderStrip(j.page,j.recto,j.r.wrapW,perHalf,sp).then(function(src){
+        var a=(j.d0/sp.total)*W, b=(j.d1/sp.total)*W, w=b-a;
+        if(w>0){
+          if(src){
+            ctx.save(); ctx.translate(a+w,0); ctx.scale(-1,1);
+            ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality="high";
+            ctx.drawImage(src,0,0,src.width,src.height,0,0,w,TEX_H);
+            ctx.restore();
+          }else{ ctx.fillStyle="#efece6"; ctx.fillRect(a,0,w,TEX_H); }
+        }
+        done++; if(onP) onP(done/jobs.length);
+      });
+    });
+  });
+  return chain.then(function(){ return cv; });
+}
+
+/* 3D용 텍스처 = 지면 텍스처 + 접지 굴곡 음영 + 실.
+   접지 굴곡은 실제로 0.6mm 남짓이라 기하로는 안 보인다.
+   면마다 밝기를 다르게 주면 세로 밴딩만 생기므로, 음영을 픽셀에 구워 넣는다. */
+function bakeSpine3D(sp, base, threadOn, threadCol){
+  var W=base.width, H=base.height;
+  var c=document.createElement("canvas"); c.width=W; c.height=H;
+  var ctx=c.getContext("2d",{alpha:false});
+  ctx.drawImage(base,0,0);
+
+  /* 대수별 원통 음영 — 광원은 앞쪽 왼편 */
+  ctx.globalCompositeOperation="multiply";
+  sp.rows.forEach(function(r){
+    var a=(r.x0/sp.total)*W, b=(r.x1/sp.total)*W, w=b-a;
+    if(w<=0) return;
+    var g=ctx.createLinearGradient(a,0,b,0);
+    g.addColorStop(0.00,"#3f4448");
+    g.addColorStop(0.04,"#767b7e");
+    g.addColorStop(0.16,"#c9ccce");
+    g.addColorStop(0.34,"#ffffff");
+    g.addColorStop(0.62,"#dcdfe0");
+    g.addColorStop(0.88,"#8d9295");
+    g.addColorStop(1.00,"#3f4448");
+    ctx.fillStyle=g; ctx.fillRect(a,0,w,H);
+  });
+  /* 위아래 감쇠 */
+  var v=ctx.createLinearGradient(0,0,0,H);
+  v.addColorStop(0,"#9fa3a6"); v.addColorStop(.045,"#eceeef");
+  v.addColorStop(.5,"#ffffff"); v.addColorStop(.955,"#e4e6e7"); v.addColorStop(1,"#8e9295");
+  ctx.fillStyle=v; ctx.fillRect(0,0,W,H);
+
+  /* 접지 마루의 반사 */
+  ctx.globalCompositeOperation="screen";
+  sp.rows.forEach(function(r){
+    var a=(r.x0/sp.total)*W, b=(r.x1/sp.total)*W, w=b-a;
+    var g=ctx.createLinearGradient(a,0,b,0);
+    g.addColorStop(0,"rgba(255,255,255,0)");
+    g.addColorStop(.26,"rgba(255,255,255,0)");
+    g.addColorStop(.36,"rgba(255,255,255,.16)");
+    g.addColorStop(.46,"rgba(255,255,255,0)");
+    g.addColorStop(1,"rgba(255,255,255,0)");
+    ctx.fillStyle=g; ctx.fillRect(a,0,w,H);
+  });
+  ctx.globalCompositeOperation="source-over";
+
+  /* 실 — 세로 축은 판형 기준이라 두께를 그쪽 배율로 잡는다 */
+  if(threadOn){
+    var pxPerMmY=H/sp.pageH;
+    var th=Math.max(2.2, 0.5*pxPerMmY);
+    [0.115,0.375,0.625,0.885].forEach(function(sy){
+      var y=sy*H;
+      ctx.save();
+      ctx.beginPath(); ctx.roundRect? ctx.roundRect(0,y-th/2,W,th,th/2) : ctx.rect(0,y-th/2,W,th);
+      ctx.fillStyle="rgba(0,0,0,.34)";
+      ctx.filter="blur(1.6px)";
+      ctx.fill();
+      ctx.filter="none";
+      ctx.beginPath();
+      if(ctx.roundRect) ctx.roundRect(0,y-th/2,W,th,th/2); else ctx.rect(0,y-th/2,W,th);
+      ctx.fillStyle=threadCol; ctx.fill();
+      var tg=ctx.createLinearGradient(0,y-th/2,0,y+th/2);
+      tg.addColorStop(0,"rgba(255,255,255,.50)");
+      tg.addColorStop(.42,"rgba(255,255,255,.06)");
+      tg.addColorStop(1,"rgba(0,0,0,.34)");
+      ctx.fillStyle=tg; ctx.fill();
+      ctx.restore();
+    });
+  }
+  return c;
+}
+
+function buildEdge(sp){
+  var leaves=Math.max(8,Math.round(sp.totalPages/2));
+  var c=document.createElement("canvas");
+  c.width=clamp(leaves*3,96,2048); c.height=48;
+  var ctx=c.getContext("2d",{alpha:false});
+  var g=ctx.createLinearGradient(0,0,c.width,0);
+  g.addColorStop(0,"#c9c3b6"); g.addColorStop(.45,"#eae5db");
+  g.addColorStop(.75,"#ded8cc"); g.addColorStop(1,"#c4bdb0");
+  ctx.fillStyle=g; ctx.fillRect(0,0,c.width,c.height);
+  ctx.fillStyle="#8d857a";
+  for(var i=0;i<leaves;i++){
+    var x=(i+.5)/leaves*c.width;
+    ctx.globalAlpha=.06+.06*(((i*2654435761)>>>0)%97)/97;
+    ctx.fillRect(x,0,Math.max(.6,c.width/leaves*.4),c.height);
+  }
+  ctx.globalAlpha=1;
+  return c;
+}
+
+/* ══ 3D 조립 ═══════════════════════════════ */
+function buildBook(sp){
+  var book=$("book"); book.innerHTML=""; facets=[];
+  var k=430/sp.pageH*scale;
+  var pw=sp.pageW*k, ph=sp.pageH*k, S=Math.max(1.2,sp.total*k);
+  book.style.width=pw+"px"; book.style.height=ph+"px";
+  book.style.marginLeft=(-pw/2)+"px"; book.style.marginTop=(-ph/2)+"px";
+
+  function add(css,cls){
+    var d=document.createElement("div");
+    d.className="f"+(cls?" "+cls:"");
+    for(var p in css) d.style[p]=css[p];
+    book.appendChild(d); return d;
+  }
+
+  /* 앞표지 = 1쪽 (z=0) */
+  add({width:pw+"px",height:ph+"px",transform:"translate3d(0,0,0)",
+       backgroundImage:coverUrl?"url("+coverUrl+")":"none",backgroundSize:"100% 100%",
+       boxShadow:"0 0 0 1px rgba(0,0,0,.30) inset, -22px 16px 44px -18px rgba(0,0,0,.75)"});
+
+  /* 뒤표지 = 마지막 쪽 (z=-S) */
+  add({width:pw+"px",height:ph+"px",
+       transform:"translate3d(0,0,"+(-S)+"px) rotateY(180deg)",
+       backgroundImage:backUrl?"url("+backUrl+")":"none",backgroundSize:"100% 100%",
+       boxShadow:"0 0 0 1px rgba(0,0,0,.30) inset",filter:"brightness(.86)"});
+
+  /* 책배 · 머리 · 발 */
+  add({width:S+"px",height:ph+"px",
+       transform:"translate3d("+(pw-S/2)+"px,0,"+(-S/2)+"px) rotateY(90deg)",
+       backgroundImage:edgeUrl?"url("+edgeUrl+")":"none",backgroundSize:"100% 100%",
+       filter:"brightness(.99)"},"edge");
+  add({width:pw+"px",height:S+"px",
+       transform:"translate3d(0,"+(-S/2)+"px,"+(-S/2)+"px) rotateX(90deg)",
+       backgroundImage:edgeUrl?"url("+edgeUrl+")":"none",backgroundSize:"100% 100%",
+       filter:"brightness(1.0)"},"edge");
+  add({width:pw+"px",height:S+"px",
+       transform:"translate3d(0,"+(ph-S/2)+"px,"+(-S/2)+"px) rotateX(90deg)",
+       backgroundImage:edgeUrl?"url("+edgeUrl+")":"none",backgroundSize:"100% 100%",
+       filter:"brightness(.80)"},"edge");
+
+  /* 대수 사이 틈으로 보이는 안쪽 어둠 */
+  add({width:S+"px",height:ph+"px",
+       transform:"translate3d("+(-S/2)+"px,0,"+(-S/2)+"px) rotateY(-90deg)",
+       background:"linear-gradient(180deg,#0b0d0e,#191c1e 32%,#08090a)"});
+
+  if(!spineUrl) return;
+
+  /* 접지면 — 실루엣만 살짝 살리고 음영은 텍스처가 담당한다 */
+  var NF=5;
+  sp.rows.forEach(function(r){
+    var r0=(r.thick*k)/2, cz0=-(r.mid*k);
+    for(var i=0;i<NF;i++){
+      var t0=-Math.PI/2+Math.PI*i/NF, t1=-Math.PI/2+Math.PI*(i+1)/NF, tm=(t0+t1)/2;
+      var ax=-r0*Math.cos(t0), az=cz0-r0*Math.sin(t0);
+      var bx=-r0*Math.cos(t1), bz=cz0-r0*Math.sin(t1);
+      var w=Math.sqrt((bx-ax)*(bx-ax)+(bz-az)*(bz-az))+0.6;
+      var cx=(ax+bx)/2, cz=(az+bz)/2;
+      var deg=-(tm*180/Math.PI)-90;
+      var s0=r.mid+(r.thick/2)*Math.sin(t0), s1=r.mid+(r.thick/2)*Math.sin(t1);
+      var us=Math.min(s0,s1)/sp.total, uw=Math.abs(s1-s0)/sp.total;
+      var bgW=uw>0? w/uw : w;
+      var d=add({width:w+"px",height:ph+"px",
+        transform:"translate3d("+(cx-w/2)+"px,0,"+cz+"px) rotateY("+deg+"deg)",
+        backgroundImage:"url("+spineUrl+")",
+        backgroundSize:bgW+"px 100%",
+        backgroundPosition:(-us*bgW)+"px 0"});
+      facets.push(d);
+    }
+  });
+  shade();
+}
+
+/* 조명 — 책등 전체를 한 밝기로 (면마다 다르게 주면 세로 밴딩이 생긴다) */
+function shade(){
+  if(!facets.length) return;
+  var ry=rotY*Math.PI/180;
+  var nx=-Math.cos(ry), nz=Math.sin(ry);      // 책등 법선 (-1,0,0) 회전
+  var Lx=-0.44,Lz=0.90, m=Math.sqrt(Lx*Lx+Lz*Lz); Lx/=m; Lz/=m;
+  var d=Math.max(0,nx*Lx+nz*Lz);
+  var b=0.62+0.55*d;
+  for(var i=0;i<facets.length;i++) facets[i].style.filter="brightness("+b.toFixed(3)+")";
+}
+
+function applyView(){
+  $("book").style.transform="translate3d("+panX+"px,"+panY+"px,0) rotateX("+rotX+"deg) rotateY("+rotY+"deg)";
+  if(spine){
+    var k=430/spine.pageH*scale, fl=$("floor");
+    fl.style.width=(spine.pageW*k*1.75)+"px";
+    fl.style.height=(spine.pageH*k*0.5)+"px";
+    fl.style.marginTop=(spine.pageH*k*0.46+panY)+"px";
+    fl.style.marginLeft=panX+"px";
+  }
+  shade();
+}
+
+/* ══ 전개도 ════════════════════════════════ */
+function drawFlat(){
+  if(!spine||$("flat").hidden) return;
+  var z=+$("flatZoom").value, dpr=Math.min(devicePixelRatio||1,2);
+  var W=Math.max(220,Math.round(spine.total*z*3.4)), H=150;
+  var c=$("flatCanvas"), l=$("flatLabels");
+  c.style.width=W+"px"; c.style.height=H+"px"; c.width=W*dpr; c.height=H*dpr;
+  l.style.width=W+"px"; l.style.height="28px"; l.width=W*dpr; l.height=28*dpr;
+  var ctx=c.getContext("2d"); ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle="#1a2024"; ctx.fillRect(0,0,W,H);
+  if(spineFlat) ctx.drawImage(spineFlat,0,0,spineFlat.width,spineFlat.height,0,0,W,H);
+  if($("tGuides").checked){
+    ctx.lineWidth=1;
+    spine.rows.forEach(function(r){
+      var a=(r.x0/spine.total)*W+.5, b=(r.mid/spine.total)*W+.5;
+      ctx.strokeStyle="rgba(65,183,228,.6)";
+      ctx.beginPath(); ctx.moveTo(a,0); ctx.lineTo(a,H); ctx.stroke();
+      ctx.strokeStyle="rgba(244,91,166,.45)"; ctx.setLineDash([3,3]);
+      ctx.beginPath(); ctx.moveTo(b,0); ctx.lineTo(b,H); ctx.stroke();
+      ctx.setLineDash([]);
+    });
+  }
+  var lc=l.getContext("2d"); lc.setTransform(dpr,0,0,dpr,0,0);
+  lc.clearRect(0,0,W,28); lc.fillStyle="#7E9199"; lc.textAlign="center";
+  var every=Math.ceil(spine.rows.length/Math.max(1,Math.floor(W/56)));
+  spine.rows.forEach(function(r,i){
+    if(i%every) return;
+    var cx=((r.x0+r.x1)/2/spine.total)*W;
+    lc.font='600 9px "IBM Plex Sans Condensed",sans-serif'; lc.fillText("S"+r.no,cx,11);
+    lc.font='400 9px "IBM Plex Mono",monospace'; lc.fillText(r.first+"·"+r.last,cx,23);
+  });
+  $("flatNote").textContent=fx(spine.total,2)+"mm · "+spine.rows.length+"대 · 등 노출 "+(spine.rows.length*2)+"쪽";
+}
+
+/* ══ 사양 (좌측 하단) ══════════════════════ */
+function drawSpec(){
+  if(!spine){ $("spec").hidden=true; return; }
+  var s=spine;
+  var rows=[
+    ["판형", fx(s.pageW,0)+" × "+fx(s.pageH,0)+" mm"],
+    ["쪽수", s.totalPages+" p"],
+    ["용지", (s.paper||"—")+(s.gsm?" "+s.gsm+"g":"")],
+    ["낱장", fx(s.caliper,3)+" mm"],
+    ["대수", s.rows.length+"대 · "+(s.rows[0]?s.rows[0].pages:0)+"p"],
+    ["실 보정", fx(s.thread,3)+" mm"],
+    ["접지 곡률", fx(s.curv,2)+" ×"],
+    ["책등", fx(s.total,2)+" mm"],
+    ["노출 여백", fx(s.rows[0]?s.rows[0].wrapW:0,3)+" mm"],
+    ["PDF 도련", (s.pdfBleedX||s.pdfBleedY)? fx(s.pdfBleedX,1)+" / "+fx(s.pdfBleedY,1)+" mm" : "없음"]
+  ];
+  $("spec").innerHTML='<div class="hd"><span>세팅</span><em>'+(s.estimated?"추정값":"SpineCalc")+'</em></div><dl>'+
+    rows.map(function(r){ return "<dt>"+r[0]+"</dt><dd>"+r[1]+"</dd>"; }).join("")+'</dl>'+
+    (s.estimated?'<div class="est">세팅 파일이 없어 16p 대수 · 미색모조 100g으로 가정했습니다.</div>':'')+
+    (s.sizeMismatch?'<div class="est">PDF가 설정 판형보다 작습니다 ('+fx(pdfInfo.trimW,1)+'×'+fx(pdfInfo.trimH,1)+'mm). 판형을 확인하세요.</div>':'')+
+    ((pdfInfo && s.totalPages!==pdfInfo.pages)?'<div class="est">PDF는 '+pdfInfo.pages+'쪽, 세팅은 '+s.totalPages+'쪽입니다.</div>':'');
+  $("spec").hidden=false;
+}
+
+/* ══ 재조립 ════════════════════════════════ */
+function rebuild(){
+  if(!pdfDoc) return;
+  var sp = cfg? cfg : estimate();
+  if(!sp.pageW && pdfInfo) sp.pageW=pdfInfo.trimW;
+  if(!sp.pageH && pdfInfo) sp.pageH=pdfInfo.trimH;
+  detectBleed(sp);
+  spine=sp;
+  $("empty").classList.add("gone");
+  var my=++token;
+  showLoad(true,"접지면 추출");
+  buildSpineTexture(sp,function(f){ setLoad(f*0.82); }).then(function(tex){
+    if(my!==token) return null;
+    spineFlat=tex; spineTex=tex;
+    spineUrl=bakeSpine3D(sp,tex,$("tThread").checked,$("threadColor").value).toDataURL("image/jpeg",0.94);
+    setLoad(0.86);
+    // 가짜(메인 스레드) 워커에서는 page.render 를 동시에 돌리면 멈춘다. 반드시 순차로.
+    var res=[];
+    return renderFull(1,900,sp).then(function(a){
+      res[0]=a; setLoad(0.93);
+      return renderFull(sp.totalPages,900,sp);
+    }).then(function(b){ res[1]=b; return res; });
+  }).then(function(res){
+    if(my!==token||!res) return;
+    coverUrl=res[0]? res[0].toDataURL("image/jpeg",0.9):null;
+    backUrl =res[1]? res[1].toDataURL("image/jpeg",0.9):null;
+    edgeUrl =buildEdge(sp).toDataURL("image/jpeg",0.9);
+    setLoad(1);
+    buildBook(sp); applyView(); drawSpec(); drawFlat();
+    showLoad(false);
+  }).catch(function(e){ showLoad(false); console.error(e); });
+}
+
+/* ══ 인터랙션 ══════════════════════════════ */
+var studio=$("studio");
+studio.addEventListener("pointerdown",function(e){
+  if(e.button!==0) return;
+  dragging=true; panning=e.shiftKey; lastX=e.clientX; lastY=e.clientY;
+  studio.classList.add("grabbing");
+  try{ studio.setPointerCapture(e.pointerId); }catch(_){}
+  e.preventDefault();
+});
+studio.addEventListener("pointermove",function(e){
+  if(!dragging) return;
+  if(e.buttons===0){ dragging=false; studio.classList.remove("grabbing"); return; }
+  var dx=e.clientX-lastX, dy=e.clientY-lastY;
+  if(panning){ panX+=dx; panY+=dy; }
+  else{ rotY=clamp(rotY+dx*0.42,-88,88); rotX=clamp(rotX-dy*0.30,-55,55); }
+  lastX=e.clientX; lastY=e.clientY; applyView();
+});
+["pointerup","pointercancel"].forEach(function(ev){
+  studio.addEventListener(ev,function(){ dragging=false; studio.classList.remove("grabbing"); });
+});
+window.addEventListener("pointerup",function(){ dragging=false; studio.classList.remove("grabbing"); });
+window.addEventListener("blur",function(){ dragging=false; });
+studio.addEventListener("wheel",function(e){
+  e.preventDefault();
+  $("zoom").value=clamp(Math.round(+$("zoom").value*(e.deltaY<0?1.07:0.94)),45,180);
+  onZoom();
+},{passive:false});
+
+function onZoom(){ scale=+$("zoom").value/104; if(spine){ buildBook(spine); applyView(); } }
+$("zoom").addEventListener("input",onZoom);
+$("reset").addEventListener("click",function(){ rotY=46; rotX=-9; panX=0; panY=0; applyView(); });
+$("tSpin").addEventListener("change",function(){
+  spinning=this.checked;
+  if(spinning) tick(); else cancelAnimationFrame(raf);
+});
+function tick(){
+  if(!spinning) return;
+  rotY+=0.3; if(rotY>88) rotY=-88;
+  applyView(); raf=requestAnimationFrame(tick);
+}
+function rebakeSpine(){
+  if(!spine||!spineFlat) return;
+  spineUrl=bakeSpine3D(spine,spineFlat,$("tThread").checked,$("threadColor").value).toDataURL("image/jpeg",0.94);
+  buildBook(spine); applyView();
+}
+$("tThread").addEventListener("change",rebakeSpine);
+$("threadColor").addEventListener("change",rebakeSpine);
+$("tFlat").addEventListener("change",function(){ $("flat").hidden=!this.checked; drawFlat(); });
+$("tGuides").addEventListener("change",drawFlat);
+$("flatZoom").addEventListener("input",drawFlat);
+
+$("chipPdf").addEventListener("click",function(){ $("filePdf").click(); });
+$("pickPdf").addEventListener("click",function(e){ e.stopPropagation(); $("filePdf").click(); });
+$("chipCfg").addEventListener("click",function(){ $("fileCfg").click(); });
+$("pickCfg").addEventListener("click",function(e){ e.stopPropagation(); $("fileCfg").click(); });
+$("filePdf").addEventListener("change",function(){ if(this.files[0]) loadPdf(this.files[0]); });
+$("fileCfg").addEventListener("change",function(){ if(this.files[0]) loadCfg(this.files[0]); });
+
+function route(f){ if(/\.pdf$/i.test(f.name)) loadPdf(f); else loadCfg(f); }
+var depth=0;
+window.addEventListener("dragenter",function(e){ e.preventDefault(); depth++; $("drophint").classList.add("show"); });
+window.addEventListener("dragover",function(e){ e.preventDefault(); });
+window.addEventListener("dragleave",function(e){ e.preventDefault(); if(--depth<=0){ depth=0; $("drophint").classList.remove("show"); } });
+window.addEventListener("drop",function(e){
+  e.preventDefault(); depth=0; $("drophint").classList.remove("show");
+  var fs=e.dataTransfer&&e.dataTransfer.files; if(!fs) return;
+  for(var i=0;i<fs.length;i++) route(fs[i]);
+});
+window.addEventListener("resize",function(){ if(spine){ applyView(); drawFlat(); } });
+
+window.__spine={
+  loadPdfFile:loadPdf,
+  loadCfgText:function(t){ cfg=parseConfig(t); $("chipCfg").classList.add("on");
+    $("cfgSz").textContent=cfg.rows.length+"대 · "+fx(cfg.total,2)+"mm"; rebuild(); },
+  setView:function(y,x){ rotY=y; rotX=x; applyView(); },
+  state:function(){ return {pdf:!!pdfDoc,info:pdfInfo,spine:spine,facets:facets.length,
+    est:spine&&!!spine.estimated}; }
+};
+})();
+</script>
