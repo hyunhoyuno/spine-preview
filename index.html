@@ -260,8 +260,8 @@ var spineFlat=null;   // 전개도용(음영 없는 원본)
 var facets=[], lit=[], token=0;
 var rotY=46, rotX=-9, panX=0, panY=0, scale=1, spinning=false, raf=0;
 var dragging=false, panning=false, lastX=0, lastY=0;
-var FACETS=9, TEX_H=3200;          // 세로가 병목이다. 가로는 이미 과표본.
-var COVER_H=2400;                  // 표지 렌더 높이(px)
+var TEX_H=4096;                    // 세로가 병목이다. 가로는 이미 과표본.
+var COVER_H=3000;                  // 표지 렌더 높이(px)
 var GRAIN=null;
 
 function showLoad(on,t){ $("load").hidden=!on; if(t)$("loadT").textContent=t; if(!on)$("loadBar").style.width="0%"; }
@@ -404,7 +404,7 @@ function renderFull(page,targetH,sp){
 /* ══ 책등 텍스처 (s 공간) ═══════════════════
    접지를 돌아 나오므로 두 반쪽 모두 좌우 반전해 그린다. */
 function buildSpineTexture(sp,onP){
-  var perHalf=clamp(Math.round(1500/(sp.rows.length*2)),24,120);
+  var perHalf=clamp(Math.round(1100/(sp.rows.length*2)),20,96);
   var W=clamp(perHalf*sp.rows.length*2,640,3600);
   var cv=document.createElement("canvas"); cv.width=W; cv.height=TEX_H;
   var ctx=cv.getContext("2d",{alpha:false});
@@ -475,6 +475,14 @@ function finishCover(c, gutterLeft){
   return c;
 }
 
+/* 책등은 계조가 그대로 드러나는 면이라 JPEG 블록이 바로 보인다.
+   PNG 를 먼저 쓰고, 사진이 많아 너무 커지면 고품질 JPEG 로 물러선다. */
+function spineDataUrl(c){
+  var png=c.toDataURL("image/png");
+  if(png.length < 14000000) return png;
+  return c.toDataURL("image/jpeg",0.97);
+}
+
 function bakeSpine3D(sp, base, threadOn, threadCol){
   var W=base.width, H=base.height;
   var c=document.createElement("canvas"); c.width=W; c.height=H;
@@ -487,13 +495,15 @@ function bakeSpine3D(sp, base, threadOn, threadCol){
     var a=(r.x0/sp.total)*W, b=(r.x1/sp.total)*W, w=b-a;
     if(w<=0) return;
     var g=ctx.createLinearGradient(a,0,b,0);
-    g.addColorStop(0.00,"#3f4448");
-    g.addColorStop(0.04,"#767b7e");
-    g.addColorStop(0.16,"#c9ccce");
-    g.addColorStop(0.34,"#ffffff");
-    g.addColorStop(0.62,"#dcdfe0");
-    g.addColorStop(0.88,"#8d9295");
-    g.addColorStop(1.00,"#3f4448");
+    g.addColorStop(0.00,"#5a6064");
+    g.addColorStop(0.03,"#7d8285");
+    g.addColorStop(0.10,"#b4b8ba");
+    g.addColorStop(0.22,"#e2e4e5");
+    g.addColorStop(0.36,"#ffffff");
+    g.addColorStop(0.58,"#eaecec");
+    g.addColorStop(0.78,"#bcc0c2");
+    g.addColorStop(0.93,"#8b9093");
+    g.addColorStop(1.00,"#5a6064");
     ctx.fillStyle=g; ctx.fillRect(a,0,w,H);
   });
   /* 위아래 감쇠 */
@@ -621,29 +631,15 @@ function buildBook(sp){
 
   if(!spineUrl) return;
 
-  /* 접지면 — 실루엣만 살짝 살리고 음영은 텍스처가 담당한다 */
-  var NF=5;
-  sp.rows.forEach(function(r){
-    var r0=(r.thick*k)/2, cz0=-(r.mid*k);
-    for(var i=0;i<NF;i++){
-      var t0=-Math.PI/2+Math.PI*i/NF, t1=-Math.PI/2+Math.PI*(i+1)/NF, tm=(t0+t1)/2;
-      var ax=-r0*Math.cos(t0), az=cz0-r0*Math.sin(t0);
-      var bx=-r0*Math.cos(t1), bz=cz0-r0*Math.sin(t1);
-      var w=Math.sqrt((bx-ax)*(bx-ax)+(bz-az)*(bz-az))+0.6;
-      var cx=(ax+bx)/2, cz=(az+bz)/2;
-      var deg=-(tm*180/Math.PI)-90;
-      var s0=r.mid+(r.thick/2)*Math.sin(t0), s1=r.mid+(r.thick/2)*Math.sin(t1);
-      var us=Math.min(s0,s1)/sp.total, uw=Math.abs(s1-s0)/sp.total;
-      var bgW=uw>0? w/uw : w;
-      var d=add({width:w+"px",height:ph+"px",
-        transform:"translate3d("+(cx-w/2)+"px,0,"+cz+"px) rotateY("+deg+"deg)",
-        backgroundImage:"url("+spineUrl+")",
-        backgroundSize:bgW+"px 100%",
-        backgroundPosition:(-us*bgW)+"px 0"});
-      facets.push(d);
-      lit.push({el:d,nx:-1,nz:0,base:1});
-    }
-  });
+  /* 접지면은 한 판으로 붙인다.
+     대수당 여러 면으로 쪼개면 굴곡(2px 남짓)은 안 보이면서
+     면 경계마다 하드한 세로 이음매만 생긴다. 굴곡은 텍스처가 표현한다. */
+  var d=add({width:S+"px",height:ph+"px",
+    transform:"translate3d("+(-S/2)+"px,0,"+(-S/2)+"px) rotateY(-90deg)",
+    backgroundImage:"url("+spineUrl+")",
+    backgroundSize:"100% 100%"});
+  facets.push(d);
+  lit.push({el:d,nx:-1,nz:0,base:1});
   shade();
 }
 
@@ -753,7 +749,7 @@ function rebuild(){
   buildSpineTexture(sp,function(f){ setLoad(f*0.82); }).then(function(tex){
     if(my!==token) return null;
     spineFlat=tex; spineTex=tex;
-    spineUrl=bakeSpine3D(sp,tex,$("tThread").checked,$("threadColor").value).toDataURL("image/jpeg",0.94);
+    spineUrl=spineDataUrl(bakeSpine3D(sp,tex,$("tThread").checked,$("threadColor").value));
     setLoad(0.86);
     // 가짜(메인 스레드) 워커에서는 page.render 를 동시에 돌리면 멈춘다. 반드시 순차로.
     var res=[];
@@ -763,8 +759,8 @@ function rebuild(){
     }).then(function(b){ res[1]=b; return res; });
   }).then(function(res){
     if(my!==token||!res) return;
-    coverUrl=res[0]? finishCover(res[0],true ).toDataURL("image/jpeg",0.95):null;
-    backUrl =res[1]? finishCover(res[1],false).toDataURL("image/jpeg",0.95):null;
+    coverUrl=res[0]? finishCover(res[0],true ).toDataURL("image/jpeg",0.96):null;
+    backUrl =res[1]? finishCover(res[1],false).toDataURL("image/jpeg",0.96):null;
     var eg=buildEdge(sp);
     edgeUrl =eg.toDataURL("image/jpeg",0.94);
     edgeUrl2=rotate90(eg).toDataURL("image/jpeg",0.94);
@@ -816,7 +812,7 @@ function tick(){
 }
 function rebakeSpine(){
   if(!spine||!spineFlat) return;
-  spineUrl=bakeSpine3D(spine,spineFlat,$("tThread").checked,$("threadColor").value).toDataURL("image/jpeg",0.94);
+  spineUrl=spineDataUrl(bakeSpine3D(spine,spineFlat,$("tThread").checked,$("threadColor").value));
   buildBook(spine); applyView();
 }
 $("tThread").addEventListener("change",rebakeSpine);
